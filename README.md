@@ -6,7 +6,9 @@ It is invoked with the name of an encrypted partition, looks up that name in
 /etc/crypttab to find the device, prompts the user for a password, decrypts the
 device and mounts it according to /etc/fstab.
 
-### Mounting /home on login ###
+Mounting /home on login
+-----------------------
+
 In order to enable the mounting of /home AFTER a user has logged in, we employ a
 little trick:
 
@@ -20,7 +22,9 @@ The included xinitrc file should take care of this, and is installed into
 *chome*, but this can be changed by modifying the file after copying it to your
 unmounted home directory.
 
-### Security ###
+Security Implications
+---------------------
+
 **Note:** The binary cryptsetup-gui installed into /usr/bin has the setuid
 flag enabled and is owned by root. This is so that it can be invoked by users
 and still be permitted to unlock a device. This is done on your own risk!
@@ -34,26 +38,21 @@ to modify either of these files, he/she will be able to use cryptsetup-gui to
 run arbitrary commands as root**. That said, if they can edit those files, you
 already have a security breach.
 
-### License ###
-*It's the standard MIT license.*
+License
+-------
 
+Copyright (C) 2016 chrono
 Copyright (C) 2012 Jon Gjengset
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions:
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-<!-- vim:set textwidth=80: -->
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
