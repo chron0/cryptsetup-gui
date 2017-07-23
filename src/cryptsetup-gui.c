@@ -5,24 +5,29 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-#define DEBUG true
-
 bool decrypt(char* name, char* device, char* options, char* password);
 bool mount(char* mountpoint);
 char *strstrip(char *s);
-void show_password_prompt(char* arg0);
+void show_password_prompt(char* arg0, char* name);
 void usage();
 
 bool do_mount = false;
 char* arg0 = NULL;
 char *name = NULL, *device = NULL, *options = NULL;
 char* mountpoint = "/dev/mapper/";
+
+/*******************************************************************************
+ * main
+ * @param
+ */
+
 int main(int argc, char** argv) {
-  if (DEBUG)
-    printf("starting cryptsetup-gui\n");
+
+  #ifdef DEBUG
+    printf("Starting cryptsetup-gui\n");
+  #endif
 
   arg0 = *argv;
-
   argv++;
   argc--;
 
@@ -35,8 +40,11 @@ int main(int argc, char** argv) {
     do_mount = true;
     argv++;
     argc--;
-    if (DEBUG)
-      printf("mount after unlocking\n");
+
+    #ifdef DEBUG
+      printf("Mount after unlocking\n");
+    #endif
+
   }
 
   if (argc != 1) {
@@ -47,8 +55,9 @@ int main(int argc, char** argv) {
   char* cryptpoint = *argv;
   char* ct = cryptpoint;
 
-  if (DEBUG)
-    printf("verifying cryptpoint\n");
+  #ifdef DEBUG
+    printf("Verifying cryptpoint\n");
+  #endif
 
   while (*ct != 0) {
     if (*ct < 'a' || *ct > 'z') {
@@ -58,8 +67,9 @@ int main(int argc, char** argv) {
     ct++;
   }
 
-  if (DEBUG)
-    printf("cryptpoint verified\n");
+  #ifdef DEBUG
+    printf("Cryptpoint verified\n");
+  #endif
 
   size_t mps = strlen(mountpoint);
   size_t cps = strlen(cryptpoint);
@@ -68,15 +78,16 @@ int main(int argc, char** argv) {
   strncpy(tmp + mps, cryptpoint, cps);
   mountpoint = tmp;
 
-  if (DEBUG)
-    printf("mountpoint resolved to '%s'\n", mountpoint);
+  #ifdef DEBUG
+    printf("Mountpoint resolved to '%s'\n", mountpoint);
+  #endif
 
   if (access(mountpoint, F_OK) == 0) {
-    if (DEBUG)
+    #ifdef DEBUG
       printf("/dev/mapper listing already exists\n");
-
-    if (DEBUG && !do_mount)
-      printf("not told to mount automatically (-m), exiting...\n");
+      if (!do_mount)
+        printf("Not told to mount automatically (-m), exiting...\n");
+    #endif
 
     // Mountpoint already exists...
     if (do_mount && !mount(mountpoint)) {
@@ -84,14 +95,17 @@ int main(int argc, char** argv) {
       exit(EXIT_FAILURE);
     }
 
-    if (DEBUG && do_mount)
-      printf("mountpoint successfully mounted\n");
+    #ifdef DEBUG
+      if (do_mount)
+        printf("Mountpoint successfully mounted\n");
+    #endif
 
     exit(EXIT_SUCCESS);
   }
 
-  if (DEBUG)
-    printf("parsing crypttab\n");
+  #ifdef DEBUG
+    printf("Parsing crypttab\n");
+  #endif
 
   FILE *f = fopen("/etc/crypttab", "re");
   if (!f) {
@@ -99,12 +113,14 @@ int main(int argc, char** argv) {
     exit(EXIT_FAILURE);
   }
 
-  if (DEBUG)
-    printf("crypttab opened\n");
+  #ifdef DEBUG
+    printf("Crypttab opened\n");
+  #endif
 
   char *l, *p = NULL;
   char line[1024];
   int n = 0;
+
   for (;;) {
     int k;
 
@@ -126,9 +142,9 @@ int main(int argc, char** argv) {
     }
 
     if (strcmp(name, cryptpoint) == 0) {
-      // We found our cryptpoint
-      if (DEBUG)
-        printf("crypttab entry found for cryptpoint '%s'\n", device);
+      #ifdef DEBUG
+        printf("Crypttab entry found for cryptpoint '%s'\n", device);
+      #endif
       break;
     }
 
@@ -140,19 +156,25 @@ int main(int argc, char** argv) {
       device = NULL;
       options = NULL;
   }
-  fclose(f);
 
-  if (DEBUG)
-    printf("crypttab parsing ended\n");
+  fclose(f);
+  #ifdef DEBUG
+    printf("Crypttab parsing finished\n");
+  #endif
 
   if (name == NULL || device == NULL) {
     fprintf(stderr, "Entry for %s not found in crypttab\n", cryptpoint);
   }
 
-  show_password_prompt(arg0);
+  show_password_prompt(arg0, name);
 
   return 0;
 }
+
+/*******************************************************************************
+ * unlock
+ * @param
+ */
 
 bool unlock(char* password) {
   // Try decrypting (note that password is not needed)
@@ -169,6 +191,11 @@ bool unlock(char* password) {
   return true;
 }
 
+/*******************************************************************************
+ * decrypt
+ * @param
+ */
+
 bool decrypt(char* name, char* device, char* options, char* password) {
   // TODO: Respect options list
   // We need to be weary of a bug in cryptsetup
@@ -183,9 +210,21 @@ bool decrypt(char* name, char* device, char* options, char* password) {
   }
 
   char* command = NULL;
-  asprintf(&command, "/sbin/cryptsetup %s -q luksOpen %s %s", flags, device, name);
+  int cres = asprintf(&command, "/sbin/cryptsetup %s -q luksOpen %s %s", flags, device, name);
+  if(cres == -1) {
+    #ifdef DEBUG
+      printf("ERROR: cryptsetup luksopen\n");
+    #endif
+    exit(EXIT_FAILURE);
+  }
 
-  setreuid(0, 0);
+  int sres = setreuid(0, 0);
+  if(sres == -1) {
+    #ifdef DEBUG
+      printf("ERROR: setreuid\n");
+    #endif
+    exit(EXIT_FAILURE);
+  }
 
   fflush(stdout);
   FILE *crypt = popen(command, "w");
@@ -194,106 +233,187 @@ bool decrypt(char* name, char* device, char* options, char* password) {
   int ret = pclose(crypt);
 
   // restore UID
-  setreuid(ruid, 0);
+  sres = setreuid(ruid, 0);
+  if(sres == -1) {
+    #ifdef DEBUG
+      printf("ERROR: setreuid\n");
+    #endif
+    exit(EXIT_FAILURE);
+  }
 
   return WEXITSTATUS(ret) == 0;
 }
+
+/*******************************************************************************
+ * mount
+ * @param
+ */
 
 bool mount(char* mountpoint) {
   // Apparently, we need this EUID != UID fix for mount as well...
   uid_t ruid = getuid();
-
   char* command = NULL;
-  fflush(stdout);
-  asprintf(&command, "/bin/mount %s", mountpoint);
 
-  setreuid(0, 0);
+  fflush(stdout);
+  int mres = asprintf(&command, "/bin/mount %s", mountpoint);
+  if(mres == -1) {
+    #ifdef DEBUG
+      printf("ERROR: Mount failed\n");
+    #endif
+    exit(EXIT_FAILURE);
+  }
+
+  int sres = setreuid(0, 0);
+  if(sres == -1) {
+    #ifdef DEBUG
+      printf("ERROR: setreuid\n");
+    #endif
+    exit(EXIT_FAILURE);
+  }
 
   FILE *mnt = popen(command, "r");
   int ret = pclose(mnt);
 
-  setreuid(ruid, 0);
+  sres = setreuid(ruid, 0);
+  if(sres == -1) {
+    #ifdef DEBUG
+      printf("ERROR: setreuid\n");
+    #endif
+    exit(EXIT_FAILURE);
+  }
 
   return WEXITSTATUS(ret) == 0;
 }
 
-// Thank you kernel
-bool is_space(char s) {
-  return s == ' ' || s == '\t' || s == '\n';
-}
-char *strstrip(char *s) {
-    size_t size;
-    char *end;
+/*******************************************************************************
+ * show_password_prompt
+ * @param
+ */
 
-    size = strlen(s);
+void show_password_prompt(char* arg0, char* name) {
 
-    if (!size)
-        return s;
+  char password[1024];
 
-    end = s + size - 1;
-    while (end >= s && is_space(*end))
-        end--;
-    *(end + 1) = '\0';
-
-    while (*s && is_space(*s))
-        s++;
-
-    return s;
-}
-
-void show_password_prompt(char* arg0) {
-  if (DEBUG)
-    printf("showing gui\n");
-
-  if (DEBUG)
-    printf("dropping permissions\n");
+  #ifdef DEBUG
+    printf("Showing GTK GUI\n");
+    printf("Dropping permissions\n");
+  #endif
 
   // We don't want to give the GTK any root access
   uid_t ruid = getuid();
-  seteuid(ruid);
+  int sres = seteuid(ruid);
+  if(sres == -1) {
+    #ifdef DEBUG
+      printf("ERROR: seteuid\n");
+    #endif
+    exit(EXIT_FAILURE);
+  }
 
-  if (DEBUG)
-    printf("permissions dropped\n");
+  #ifdef DEBUG
+    printf("Permissions dropped\n");
+  #endif
 
   fflush(stdout);
 
   char* command = NULL;
-  asprintf(&command, "%s-gtk", arg0);
+  int gtkres = asprintf(&command, "%s-gtk %s", arg0, name);
+  if(gtkres == -1) {
+    #ifdef DEBUG
+      printf("ERROR: cryptsetup-gui-gtk call failed\n");
+    #endif
+    exit(EXIT_FAILURE);
+  }
+
   FILE *pw = popen(command, "r");
   free(command);
 
-  if (DEBUG)
-    printf("gui started\n");
+  #ifdef DEBUG
+    printf("GTK GUI started\n");
+  #endif
 
   // Now get the password
-  char password[1024];
-  fgets(password, 1024, pw);
+
+
+  if (fgets(password, 1024, pw) == NULL) {
+    printf("Password not received\n");
+    exit(EXIT_FAILURE);
+  }
+
   strtok(password, "\n");
 
-  if (DEBUG)
-    printf("password received\n");
+  #ifdef DEBUG
+    printf("Password received\n");
+  #endif
 
   pclose(pw);
   fflush(stdout);
 
-  if (DEBUG)
-    printf("gui closed, resuming root\n");
+  #ifdef DEBUG
+    printf("GTK GUI closed, resuming root\n");
+  #endif
 
   // Need root to do the unlocking
-  seteuid(0);
+  sres = seteuid(0);
+  if(sres == -1) {
+    #ifdef DEBUG
+      printf("ERROR: seteuid\n");
+    #endif
+    exit(EXIT_FAILURE);
+  }
 
-  if (DEBUG)
+  #ifdef DEBUG
     printf("EUID now %d, unlocking...\n", geteuid());
+  #endif
 
   if (unlock(password)) {
-    if (DEBUG)
-      printf("unlocked successfully\n");
+    #ifdef DEBUG
+      printf("Unlocked successfully\n");
+    #endif
   } else {
     fflush(stdout);
-    fprintf(stderr, "invalid password given, unlock not possible\n");
+    fprintf(stderr, "Invalid password given, unlock not possible\n");
     exit(EXIT_FAILURE);
   }
 }
+
+/*******************************************************************************
+ * is_space - Thank your kernel
+ * @param
+ */
+
+bool is_space(char s) {
+  return s == ' ' || s == '\t' || s == '\n';
+}
+
+/*******************************************************************************
+ * strstrip
+ * @param
+ */
+
+char *strstrip(char *s) {
+  size_t size;
+  char *end;
+
+  size = strlen(s);
+
+  if (!size)
+    return s;
+
+  end = s + size - 1;
+
+  while (end >= s && is_space(*end))
+    end--;
+  *(end + 1) = '\0';
+
+  while (*s && is_space(*s))
+    s++;
+
+  return s;
+}
+
+/*******************************************************************************
+ * usage
+ */
 
 void usage() {
   printf("Usage: %s [-m] cryptpoint\n", arg0);
