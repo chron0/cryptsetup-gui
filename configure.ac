@@ -1,4 +1,3 @@
-
 AC_PREREQ([2.69])
 AC_INIT([cryptsetup-gui], [0.6.1], [https://github.com/chron0/cryptsetup-gui])
 AC_CONFIG_SRCDIR([src/cryptsetup-gui.c])
@@ -6,10 +5,9 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile src/Makefile])
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 
-# Checks for programs.
+CFLAGS="$CFLAGS"
 AC_PROG_CC
 
-# Checks for header files.
 AC_CHECK_HEADERS([stdlib.h string.h unistd.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
@@ -38,5 +36,7 @@ AM_CONDITIONAL(DEBUG, test x"$debug" = x"true")
 AM_COND_IF(DEBUG,
     AC_DEFINE(DEBUG, 1, [Define to 0 if this is a release build]),
     AC_DEFINE(DEBUG, 0, [Define to 1 or higher if this is a debug build]))
+
+AC_SUBST(AM_CFLAGS)
 
 AC_OUTPUT
